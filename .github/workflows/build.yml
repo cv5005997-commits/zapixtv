@@ -69,3 +69,5 @@ jobs:
           name: ZapixTV-debug-apk
           path: source/**/build/outputs/apk/debug/*.apk
           if-no-files-found: error
+
+# Trigger build workflow
