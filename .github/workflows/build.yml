@@ -51,6 +51,11 @@ jobs:
             exit 1
           fi
 
+      - name: Inspect PlayerEngine initialization
+        run: |
+          nl -ba app/src/main/java/com/zapix/tv/PlayerEngine.kt | sed -n '1,115p'
+        working-directory: ${{ env.PROJECT_DIR }}
+
       - name: Build debug APK
         shell: bash
         run: |
