@@ -51,6 +51,27 @@ jobs:
             exit 1
           fi
 
+      - name: Patch PlayerEngine initialization
+        shell: bash
+        run: |
+          set -euo pipefail
+          FILE="app/src/main/java/com/zapix/tv/PlayerEngine.kt"
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("app/src/main/java/com/zapix/tv/PlayerEngine.kt")
+          s = p.read_text()
+          old = "private val player: ExoPlayer"
+          new = "private lateinit var player: ExoPlayer"
+          count = s.count(old)
+          if count != 1:
+              raise SystemExit(f"Expected exactly one player declaration, found {count}; refusing unsafe patch")
+          s = s.replace(old, new, 1)
+          p.write_text(s)
+          print("Patched player to lateinit var; init block retains responsibility for construction.")
+          PY
+          grep -n -E 'player: ExoPlayer|player =|ExoPlayer.Builder' "$FILE"
+        working-directory: ${{ env.PROJECT_DIR }}
+
       - name: Inspect PlayerEngine initialization
         run: |
           nl -ba app/src/main/java/com/zapix/tv/PlayerEngine.kt | sed -n '1,115p'
