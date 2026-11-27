@@ -89,7 +89,7 @@ jobs:
             echo "::error::Gradle terminó pero no produjo un APK debug."
             exit 1
           fi
-          echo "path=$PWD/$APK" >> "$GITHUB_OUTPUT"
+          echo "path=$APK" >> "$GITHUB_OUTPUT"
           ls -lh "$APK"
           sha256sum "$APK"
 
@@ -97,7 +97,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ZapixTV-debug-apk
-          path: ${{ steps.apk.outputs.path }}
+          path: ${{ steps.project.outputs.dir }}/${{ steps.apk.outputs.path }}
           if-no-files-found: error
 
       - name: Publish APK to GitHub Release
@@ -105,11 +105,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          APK="${{ steps.apk.outputs.path }}"
+          APK="${{ steps.project.outputs.dir }}/${{ steps.apk.outputs.path }}"
           if gh release view v1.0.0 --repo "${{ github.repository }}" >/dev/null 2>&1; then
             gh release upload v1.0.0 "$APK" --repo "${{ github.repository }}" --clobber
           else
             gh release create v1.0.0 "$APK" --repo "${{ github.repository }}" --title "ZapixTV v1.0.0" --notes "APK compilado automáticamente desde el ZIP del repositorio."
           fi
 
-# Re-run with the verified PlayerEngine initialization fix.
+# Re-run with verified Kotlin initialization and artifact path fixes.
