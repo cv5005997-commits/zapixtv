@@ -93,3 +93,5 @@ jobs:
           else
             gh release create v1.0.0 "$APK" --title "ZapixTV v1.0.0" --notes "APK compilado mediante GitHub Actions."
           fi
+
+# Trigger de compilación solicitado el 2026-11-26
