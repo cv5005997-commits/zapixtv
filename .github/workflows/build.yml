@@ -47,6 +47,25 @@ jobs:
           echo "Proyecto detectado en: $PROJECT_DIR"
           find "$PROJECT_DIR" -maxdepth 3 -type f | sort | head -200
 
+      - name: Apply Kotlin initialization fix
+        working-directory: ${{ steps.project.outputs.dir }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          FILE="$(find . -type f -path '*/src/main/java/com/zapix/tv/PlayerEngine.kt' -print -quit)"
+          if [ -z "$FILE" ]; then
+            echo "::error::No se encontró PlayerEngine.kt; no se aplicó ningún cambio."
+            exit 1
+          fi
+          if grep -q 'private val player: ExoPlayer' "$FILE"; then
+            sed -i 's/private val player: ExoPlayer/private lateinit var player: ExoPlayer/' "$FILE"
+          fi
+          grep -n 'player' "$FILE" | head -20
+          if ! grep -q 'private lateinit var player: ExoPlayer' "$FILE"; then
+            echo "::error::No se pudo verificar la corrección de inicialización de player."
+            exit 1
+          fi
+
       - name: Build debug APK
         working-directory: ${{ steps.project.outputs.dir }}
         shell: bash
@@ -93,4 +112,4 @@ jobs:
             gh release create v1.0.0 "$APK" --repo "${{ github.repository }}" --title "ZapixTV v1.0.0" --notes "APK compilado automáticamente desde el ZIP del repositorio."
           fi
 
-# Re-run requested for Zapix (3).
+# Re-run with the verified PlayerEngine initialization fix.
