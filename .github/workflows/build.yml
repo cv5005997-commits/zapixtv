@@ -1,0 +1,101 @@
+name: Build ZapixTV APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Extract project ZIP
+        shell: bash
+        run: |
+          set -euo pipefail
+          ZIP="$(find . -maxdepth 1 -type f -iname '*.zip' -print -quit)"
+          if [ -z "$ZIP" ]; then
+            echo "ERROR: No se encontró un ZIP en la raíz del repositorio."
+            exit 1
+          fi
+          mkdir -p source
+          unzip -q "$ZIP" -d source
+          echo "ZIP extraído: $ZIP"
+          find source -maxdepth 4 \( -name settings.gradle -o -name settings.gradle.kts \) -print
+
+      - name: Locate Android Gradle project
+        id: project
+        shell: bash
+        run: |
+          set -euo pipefail
+          SETTINGS="$(find source -type f \( -name settings.gradle -o -name settings.gradle.kts \) -print -quit)"
+          if [ -z "$SETTINGS" ]; then
+            echo "ERROR: El ZIP no contiene settings.gradle ni settings.gradle.kts."
+            find source -maxdepth 5 -type f | head -200
+            exit 1
+          fi
+          PROJECT_DIR="$(dirname "$SETTINGS")"
+          echo "dir=$PROJECT_DIR" >> "$GITHUB_OUTPUT"
+          echo "Proyecto encontrado en: $PROJECT_DIR"
+          ls -la "$PROJECT_DIR"
+
+      - name: Build debug APK
+        working-directory: ${{ steps.project.outputs.dir }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -f ./gradlew ]; then
+            chmod +x ./gradlew
+            ./gradlew --no-daemon clean assembleDebug
+          else
+            gradle --no-daemon clean assembleDebug
+          fi
+
+      - name: Locate APK
+        id: apk
+        working-directory: ${{ steps.project.outputs.dir }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="$(find . -type f -path '*/build/outputs/apk/debug/*.apk' -print -quit)"
+          if [ -z "$APK" ]; then
+            echo "ERROR: La compilación terminó pero no se encontró ningún APK debug."
+            exit 1
+          fi
+          echo "path=$PWD/$APK" >> "$GITHUB_OUTPUT"
+          ls -lh "$APK"
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ZapixTV-debug-apk
+          path: ${{ steps.apk.outputs.path }}
+          if-no-files-found: error
+
+      - name: Publish APK to GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          APK="${{ steps.apk.outputs.path }}"
+          if gh release view v1.0.0 --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            gh release upload v1.0.0 "$APK" --repo "${{ github.repository }}" --clobber
+          else
+            gh release create v1.0.0 "$APK" --repo "${{ github.repository }}" --title "ZapixTV v1.0.0" --notes "APK compilado automáticamente."
+          fi
