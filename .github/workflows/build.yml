@@ -92,3 +92,5 @@ jobs:
           else
             gh release create v1.0.0 "$APK" --repo "${{ github.repository }}" --title "ZapixTV v1.0.0" --notes "APK compilado automáticamente desde el ZIP del repositorio."
           fi
+
+# Re-run requested for Zapix (3).
