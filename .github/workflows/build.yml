@@ -42,7 +42,7 @@ jobs:
             find source -maxdepth 5 -type f | head -200
             exit 1
           fi
-          PROJECT_DIR="$(dirname "$SETTINGS")"
+          PROJECT_DIR="$(realpath "$(dirname "$SETTINGS")")"
           echo "dir=$PROJECT_DIR" >> "$GITHUB_OUTPUT"
           echo "Proyecto detectado en: $PROJECT_DIR"
           find "$PROJECT_DIR" -maxdepth 3 -type f | sort | head -200
@@ -89,15 +89,16 @@ jobs:
             echo "::error::Gradle terminó pero no produjo un APK debug."
             exit 1
           fi
-          echo "path=$APK" >> "$GITHUB_OUTPUT"
-          ls -lh "$APK"
-          sha256sum "$APK"
+          cp "$APK" "$GITHUB_WORKSPACE/ZapixTV-debug.apk"
+          echo "path=ZapixTV-debug.apk" >> "$GITHUB_OUTPUT"
+          ls -lh "$GITHUB_WORKSPACE/ZapixTV-debug.apk"
+          sha256sum "$GITHUB_WORKSPACE/ZapixTV-debug.apk"
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: ZapixTV-debug-apk
-          path: ${{ steps.project.outputs.dir }}/${{ steps.apk.outputs.path }}
+          path: ZapixTV-debug.apk
           if-no-files-found: error
 
       - name: Publish APK to GitHub Release
@@ -105,11 +106,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          APK="${{ steps.project.outputs.dir }}/${{ steps.apk.outputs.path }}"
+          APK="ZapixTV-debug.apk"
           if gh release view v1.0.0 --repo "${{ github.repository }}" >/dev/null 2>&1; then
             gh release upload v1.0.0 "$APK" --repo "${{ github.repository }}" --clobber
           else
             gh release create v1.0.0 "$APK" --repo "${{ github.repository }}" --title "ZapixTV v1.0.0" --notes "APK compilado automáticamente desde el ZIP del repositorio."
           fi
 
-# Re-run with verified Kotlin initialization and artifact path fixes.
+# Normalize project path and copy APK to workspace root before upload/release.
